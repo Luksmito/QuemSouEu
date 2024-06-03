@@ -5,7 +5,9 @@ enum PacketType {
   setToGuess,
   findLobby,
   findLobbyResponse,
-  passTurn
+  passTurn,
+  quitGame, 
+  restartGame
 }
 
 PacketType? packetTypeFromString(String value) {
@@ -24,6 +26,10 @@ PacketType? packetTypeFromString(String value) {
       return PacketType.findLobbyResponse;
     case 'PacketType.passTurn':
       return PacketType.passTurn;
+    case 'PacketType.quitGame':
+      return PacketType.quitGame;
+    case 'PacketType.restartGame':
+      return PacketType.restartGame;
     default:
       return null;
   }

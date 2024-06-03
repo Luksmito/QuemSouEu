@@ -3,119 +3,55 @@ import 'dart:async';
 import 'dart:io';
 
 class Server {
-  static const String multicastAddress = 'ff02::1'; // Endereço de multicast IPv6
-
-  static void startToListen(
-      RawDatagramSocket socket, Function(String, RawDatagramSocket) callback) async {
+  static void startToListen(RawDatagramSocket socket,
+      Function(String, RawDatagramSocket) callback) async {
     try {
-      final interfaces = await NetworkInterface.list();
-      for (var interface in interfaces) {
-        for (var address in interface.addresses) {
-          // Verifique se o endereço é do tipo IPv6 e não é um loopback
-          if (address.type == InternetAddressType.IPv6 && !address.isLoopback) {
-            try {
-              // Junte-se ao grupo de multicast nesta interface
-              print(interface);
-              socket.joinMulticast(InternetAddress(Server.multicastAddress), interface);
-            } catch (e) {
-              print('Erro ao se juntar ao multicast: $e');
+      socket.listen(
+          (RawSocketEvent event) {
+            if (event == RawSocketEvent.read) {
+              Datagram? datagram = socket.receive();
+              print("RECEIVED");
+              if (datagram != null) {
+                String message = String.fromCharCodes(datagram.data);
+                callback(message, socket);
+              }
+              socket.readEventsEnabled = true;
             }
-            break;
+          },
+          onError: (e) => print("onError"),
+          onDone: () {
+            print("socket Fechado");
+            socket.close();
+          });
+    } catch (e) {
+      print("Erro ao ouvir: $e");
+    }
+  }
+
+  static getIP() async {
+    final interfaces = await NetworkInterface.list();
+    for (var interface in interfaces) {
+      if (!interface.name.contains("rmnet") && !interface.name.contains("WSL")) {
+        for (var address in interface.addresses) {
+          // Verifique se o endereço é do tipo IPv4 e não é um loopback
+          if (address.type == InternetAddressType.IPv4 && !address.isLoopback) {
+            return address;
           }
         }
       }
-    } on Exception catch (e) {
-      print("ERRO $e");
     }
-    print("ESCUTANDO");
-    socket.multicastHops = 20;
-    socket.listen((RawSocketEvent event) {
-      if (event == RawSocketEvent.read) {
-        Datagram? datagram = socket.receive();
-        if (datagram != null) {
-          String message = String.fromCharCodes(datagram.data);
-          callback(message, socket);
-        }
-        socket.readEventsEnabled = true;
-      }
-    }, onError: (e) => print("onError"), onDone: () {
-      print("socket Fechado");
-      socket.close();
-    });
   }
 
-  static Future<RawDatagramSocket?> start(int port) async {
+  static Future<RawDatagramSocket?> start(int port, InternetAddress ip) async {
     try {
-      return await RawDatagramSocket.bind(InternetAddress.anyIPv6, port);
+      RawDatagramSocket socket = await RawDatagramSocket.bind(ip, port);
+      return socket;
     } catch (e) {
       print("Erro $e");
       return null;
     }
   }
 }
-
-/*
-import 'dart:async';
-import 'dart:io';
-
-class Server {
-  static const String multicastAddress = '239.255.1.1';
-
-  
-  static void startToListen(RawDatagramSocket socket, Function(String, RawDatagramSocket) callback) async{
-    
-    try {
-       final interfaces = await NetworkInterface.list();
-    for (var interface in interfaces) {
-      for (var address in interface.addresses) {
-        // Verifique se o endereço é do tipo IPv4 e não é um loopback
-        if (address.type == InternetAddressType.IPv4 && !address.isLoopback) {
-          try {
-            // Junte-se ao grupo de multicast nesta interface
-            print(interface);
-            socket.joinMulticast(InternetAddress(Server.multicastAddress), interface);
-          } catch (e) {
-            print('Erro ao se juntar ao multicast: $e');
-          }
-        }
-      }
-    }
-      
-    } on Exception catch (e) {
-      print("ERRO $e");
-    }
-    print("ESCUTANDO");
-    socket.multicastHops = 20;
-    socket.broadcastEnabled = true;
-    socket.listen((RawSocketEvent event) {     
-        if (event == RawSocketEvent.read) {
-          Datagram? datagram = socket.receive();
-          if (datagram != null) {
-            String message = String.fromCharCodes(datagram.data);
-            callback(message, socket);
-          } 
-          socket.readEventsEnabled = true;
-        }
-      }, onError: (e) => print("onError"),
-      onDone: () {
-        print("socket Fechado");
-        socket.close();
-      }  
-    );
-  }
-
-  static Future<RawDatagramSocket?> start(int port) async {
-    try {
-      return await RawDatagramSocket.bind(InternetAddress.anyIPv4, port);
-    } catch (e) {
-      print("Erro $e");
-      return null;
-    } 
-  }
-
-
-
-}*/
 
 /*import 'dart:async';
 import 'dart:io';

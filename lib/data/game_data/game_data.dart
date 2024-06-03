@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,24 +5,31 @@ import 'package:quem_sou_eu/data/game_data/game_packet.dart';
 import 'package:quem_sou_eu/data/game_data/game_states.dart';
 import 'package:quem_sou_eu/data/game_data/packet_types.dart';
 import 'package:quem_sou_eu/data/player/player.dart';
-import 'package:quem_sou_eu/data/server/server.dart';
 
 class GameData with ChangeNotifier {
+
   final Player myPlayer;
   final List<Player> players = [];
+  final int gamePort;
+  final InternetAddress hostIP;
+  final String lobbyName;
+  final String theme;
+
   GameState gameState = GameState.waitingPlayers;
   late bool onLobby;
-  final int gamePort;
   bool isMyTurn = false;
-  String whosTurn = ""; 
+  String whosTurn = "";
+  bool quitGame = false;
 
-  Map<String, bool> canConnect = {
+  Map<String, dynamic> canConnect = {
     "canConnect": false,
     "nickUnavailable": false,
-    "changed": false
+    "changed": false,
+    "lobbyName": "",
+    "theme": ""
   };
 
-  GameData(this.myPlayer, this.gamePort) {
+  GameData(this.myPlayer, this.gamePort, this.hostIP, this.lobbyName, this.theme) {
     players.add(myPlayer);
     onLobby = myPlayer.isHost;
   }
@@ -31,7 +37,7 @@ class GameData with ChangeNotifier {
   int findIndexNextPlayer(String nick) {
     for (int i = 0; i < players.length; i++) {
       if (myPlayer.nick == players[i].nick) {
-        return (i+1) % players.length;
+        return (i + 1) % players.length;
       }
     }
     return 0;
@@ -46,24 +52,53 @@ class GameData with ChangeNotifier {
     notifyListeners();
   }
 
+  void sendPacketToAllPlayers(RawDatagramSocket socket, GamePacket packet) {
+    for (var player in players) {
+      print("Enviando para $player");
+      if (player.nick != myPlayer.nick) {
+        socket.send(packet.toString().codeUnits, player.myIP, gamePort);
+      }
+    }
+  }
+
+  List<Map<String, String>> generatePlayersInLobby() {
+    return List<Map<String, String>>.generate(
+        players.length,
+        (index) =>
+            {"nick": players[index].nick, "ip": players[index].myIP.address});
+  }
+
   void processNewPlayerPacket(GamePacket packet, RawDatagramSocket socket) {
     if (onLobby) {
       print("Adicionando player ${packet.playerNick}");
-      addPlayer(Player(packet.playerNick));
+      if (packet.newPlayerNick != myPlayer.nick) {
+        addPlayer(Player(packet.newPlayerNick!, packet.playerIP));
+      }
+
       if (myPlayer.isHost) {
         print(
             "Host enviando para o novo player o pacote com os players da sala");
         GamePacket gamePacket = GamePacket(
             fromHost: true,
             playerNick: myPlayer.nick,
+            playerIP: myPlayer.myIP,
             type: PacketType.sendPlayersAlreadyInLobby,
-            playersAlreadyInLobby: List<String>.generate(
-                players.length, (index) => players[index].nick));
+            playersAlreadyInLobby: generatePlayersInLobby());
+
         print(gamePacket.toString());
-        socket.send(json.encode(gamePacket.toJson()).codeUnits,
-            InternetAddress(Server.multicastAddress), gamePort);
+        socket.send(gamePacket.toString().codeUnits, packet.playerIP, gamePort);
+        gamePacket = GamePacket(
+          fromHost: true,
+          playerNick: myPlayer.nick,
+          newPlayerNick: packet.newPlayerNick,
+          playerIP: packet.playerIP,
+          type: PacketType.newPlayer,
+        );
+        sendPacketToAllPlayers(socket, packet);
       }
     }
+    print("ESPERANDO");
+    Future.delayed(const Duration(seconds: 2));
   }
 
   void setToGuess(newPacket) {
@@ -74,7 +109,7 @@ class GameData with ChangeNotifier {
         break;
       }
     }
-    ;
+    
   }
 
   bool isAllPlayersToGuessSetted() {
@@ -86,32 +121,58 @@ class GameData with ChangeNotifier {
     return true;
   }
 
+  void setPlayerOrder(List<String> playerOrder) {
+    for (int i = 0; i < players.length; i++) {
+      for (int j = i; j < players.length; j++) {
+        if (playerOrder[i] == players[j].nick) {
+          var aux = players[i];
+          players[i] = players[j];
+          players[j] = aux;
+        }
+      }
+    }
+  }
+
   void processPacket(String packet, RawDatagramSocket socket) {
     print("Packet Received $packet");
+    print("Sou host?: ${myPlayer.isHost}");
     GamePacket newPacket = GamePacket.fromString(packet);
+    if (newPacket.playerNick == myPlayer.nick && newPacket.type != PacketType.setToGuess) {
+      return;
+    }
+    print("newPacket.type: ${newPacket.type}");
     switch (newPacket.type) {
       case PacketType.newPlayer:
-        if (isWaitingPlayers() && newPacket.playerNick != myPlayer.nick) {
+        if (isWaitingPlayers() && newPacket.newPlayerNick != myPlayer.nick) {
           processNewPlayerPacket(newPacket, socket);
         }
         break;
       case PacketType.findLobby:
         if (myPlayer.isHost) {
-          final nicks = List.generate(players.length, (index) => players[index].nick);
+          final nicks =
+              List.generate(players.length, (index) => players[index].nick);
           GamePacket response = GamePacket(
+            playerIP: myPlayer.myIP,
             fromHost: true,
             playerNick: myPlayer.nick,
+            theme: theme,
+            lobbyName: lobbyName,
             type: PacketType.findLobbyResponse,
           );
-          response.response = nicks.contains(newPacket.playerNick) ? "nick indisponivel" : "ok";
-          socket.send(response.toString().codeUnits, InternetAddress(Server.multicastAddress), gamePort);
+          response.response =
+              nicks.contains(newPacket.playerNick) ? "nick indisponivel" : "ok";
+          print("Enviando resposta para ${newPacket.playerIP.address}:6666");
+          socket.send(
+              response.toString().codeUnits, newPacket.playerIP, 6666);
         }
       case PacketType.findLobbyResponse:
         if (!onLobby && newPacket.fromHost) {
+          
           canConnect["changed"] = true;
           if (newPacket.response == "ok") {
             canConnect["canConnect"] = true;
-            
+            canConnect["lobbyName"] = newPacket.lobbyName;
+            canConnect["theme"] = newPacket.theme;
           } else if (newPacket.response == "nick indisponivel") {
             canConnect["nickUnavailable"] = true;
           }
@@ -121,10 +182,12 @@ class GameData with ChangeNotifier {
         if (!onLobby) {
           print("Recebendo players já cadastrados");
           for (int i = 0; i < newPacket.playersAlreadyInLobby!.length; i++) {
-            String nick = newPacket.playersAlreadyInLobby![i];
+            var nick = newPacket.playersAlreadyInLobby![i]["nick"]!;
+            var ip = newPacket.playersAlreadyInLobby![i]["ip"]!;
             if (nick != myPlayer.nick) {
-              print("Player Recebido $nick");
-              addPlayer(Player(nick));
+              print("Player Recebido ${newPacket.playersAlreadyInLobby![i]}");
+
+              addPlayer(Player(nick, InternetAddress(ip)));
             }
           }
           onLobby = true;
@@ -133,38 +196,61 @@ class GameData with ChangeNotifier {
       case PacketType.gameStateChange:
         gameState = newPacket.newGameState!;
         if (gameState == GameState.waitingPlayerChooseToGuess) {
-          players.clear();
-          for (var player in newPacket.playerOrder!) {
-            players.add(Player(player));
+          if (newPacket.playerOrder != null) {
+            setPlayerOrder(newPacket.playerOrder!);
           }
         } else if (gameState == GameState.gameStarting) {
           whosTurn = players[0].nick;
           isMyTurn = whosTurn == myPlayer.nick;
         }
         break;
+      case PacketType.quitGame:
+        players.removeWhere((element) => element.nick == newPacket.playerNick);
+        if (newPacket.fromHost) {
+          quitGame = true;
+        }
+        break;
       case PacketType.setToGuess:
         setToGuess(newPacket);
         if (myPlayer.isHost) {
-          if (isAllPlayersToGuessSetted()) {
+          sendPacketToAllPlayers(socket, newPacket);
+          if (isAllPlayersToGuessSetted()) { 
             GamePacket sendPacket = GamePacket(
-              fromHost: true, 
-              playerNick: myPlayer.nick, 
-              type: PacketType.gameStateChange,
-              newGameState: GameState.gameStarting
+                fromHost: true,
+                playerNick: myPlayer.nick,
+                playerIP: myPlayer.myIP,
+                type: PacketType.gameStateChange,
+                newGameState: GameState.gameStarting
             );
-            socket.send(sendPacket.toString().codeUnits, InternetAddress(Server.multicastAddress), gamePort);
+            setGameState = GameState.gameStarting;
+            sendPacketToAllPlayers(socket, sendPacket);
             whosTurn = players[0].nick;
             isMyTurn = whosTurn == myPlayer.nick;
+            notifyListeners();
           }
         }
-      return;
+        return;
       case PacketType.passTurn:
-        int index = (players.indexWhere((player) => player.nick == whosTurn) + 1) % players.length;
-        whosTurn = players[index].nick;
-        isMyTurn = whosTurn == myPlayer.nick;
+        passTurn();
+        if (myPlayer.isHost) {
+          sendPacketToAllPlayers(socket, newPacket);
+        }
+        return;      
+      case PacketType.restartGame:
+        restartGame();
+        break;
       default:
         break;
     }
+    notifyListeners();
+  }
+
+  void passTurn() {
+    int index =
+            (players.indexWhere((player) => player.nick == whosTurn) + 1) %
+                players.length;
+        whosTurn = players[index].nick;
+        isMyTurn = whosTurn == myPlayer.nick;
     notifyListeners();
   }
 
@@ -192,5 +278,17 @@ class GameData with ChangeNotifier {
 
   bool isGameRunning() {
     return gameState == GameState.gameStarting;
+  }
+  
+  void restartGame() {
+    for (var player in players) {
+      player.toGuess = null;
+      player.image = null;
+    }
+    myPlayer.image = null;
+    myPlayer.toGuess = null;
+    isMyTurn = false;
+    whosTurn = "";
+    gameState = GameState.waitingPlayers;
   }
 }

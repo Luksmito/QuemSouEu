@@ -11,6 +11,7 @@ class PlayerList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.count(
+      childAspectRatio: 0.6,
       crossAxisCount: 2,
       children: List.generate(gameData.players.length, (index) {
         return Center(

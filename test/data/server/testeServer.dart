@@ -9,7 +9,7 @@ import 'package:quem_sou_eu/data/server/server.dart';
 
 import 'game_data_cmd.dart';
 
-const portaMulticast = 4444;
+const portaMulticast = 6464;
 
 void writeToFile(String content) {
   // Abra o arquivo em modo de escrita
@@ -20,20 +20,18 @@ void writeToFile(String content) {
 
 }
 
-void send(RawDatagramSocket socket, dynamic message) {
-  socket.send(message.codeUnits, InternetAddress(Server.multicastAddress), portaMulticast);
-}
-
 String convertGamePacketToJson(GamePacket gamePacket) {
   return jsonEncode(gamePacket.toJson());
 }
 
 void main() async {
+  InternetAddress myIP = InternetAddress("2804:214:87f3:3132:17ce:d1ba:a6d:4ebc%8");
+  
   print("Player ou host: ");
   String? playerOuHost = stdin.readLineSync();
   print("Nome: ");
   String? nome = stdin.readLineSync();
-  var player = playerOuHost == "player" ? Player(nome!) : Host(nome!);
+  var player = playerOuHost == "player" ? Player(nome!, InternetAddress("2804:1b3:6980:6169:9414:a8c1:efda:b8c6")) : Host(nome!, myIP);
 
   GameDataCMD gameData = GameDataCMD(player, portaMulticast);
   RawDatagramSocket? socket;
@@ -46,9 +44,12 @@ void main() async {
       case "1":
         print("Criando sala");
         print("Iniciando socket");
-        socket = await Server.start(portaMulticast);
+        socket = await Server.start(portaMulticast, player.myIP);
+        
         if (socket != null) {
+          print("Meu ip: ${socket.address}");
          Server.startToListen(socket, gameData.processPacket);
+         socket.writeEventsEnabled = true;
         } else {
           print("Erro ao criar server");
           return; 
@@ -61,19 +62,18 @@ void main() async {
           break;
         } else {
           print("Iniciando socket");
-          print("Port: ");
-          String? portaStr = stdin.readLineSync();
-          int porta = int.parse(portaStr!);
-          socket = await Server.start(porta);
+         
+          socket = await Server.start(portaMulticast, player.myIP);
           if (socket != null) {
             Server.startToListen(socket, gameData.processPacket);
             GamePacket packet = GamePacket(
+            playerIP: socket.address,
             fromHost: player.isHost, 
             playerNick: player.nick, 
             type: PacketType.newPlayer
           );
-          
-          socket.send(packet.toString().codeUnits, InternetAddress(Server.multicastAddress), portaMulticast);
+          socket.writeEventsEnabled = true;
+          socket.send(packet.toString().codeUnits, myIP, portaMulticast);
           }
         }
 

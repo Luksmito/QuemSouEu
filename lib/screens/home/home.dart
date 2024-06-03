@@ -28,14 +28,14 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () {
                Navigator.pushNamed(context, '/hostGame');
               }, 
-              child: Text("Hospedar jogo", style: Theme.of(context).textTheme.bodySmall,)
+              child: Text("Hospedar jogo")
             ),
             const SizedBox(height: 20,),
             ElevatedButton(
               onPressed: () {
                 Navigator.pushNamed(context, '/findLobby');
               }, 
-              child: Text("Entrar em jogo", style: Theme.of(context).textTheme.bodySmall,)
+              child: const Text("Entrar em jogo",)
             ),
           ],
         ),

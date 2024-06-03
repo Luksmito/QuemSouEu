@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:quem_sou_eu/data/game_data/game_data.dart';
 import 'package:http/http.dart' as http;
 import 'package:quem_sou_eu/screens/game/image_to_guess.dart';
+import 'package:quem_sou_eu/screens/utils/utils.dart';
 
 class SelectToGuess extends StatefulWidget {
   const SelectToGuess(
@@ -37,7 +38,7 @@ class _SelectToGuessState extends State<SelectToGuess> {
   int findIndexNextPlayer() {
     for (int i = 0; i < widget.gameData.players.length; i++) {
       if (widget.gameData.myPlayer.nick == widget.gameData.players[i].nick) {
-        return (i+1) % widget.gameData.players.length;
+        return (i + 1) % widget.gameData.players.length;
       }
     }
     return 0;
@@ -58,43 +59,22 @@ class _SelectToGuessState extends State<SelectToGuess> {
     });
   }
 
-  Future<bool?> confirmationDialog(title, content) async {
-    return await showDialog<bool>(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text(
-              title,
-              style: Theme.of(context).textTheme.displayMedium,
-            ),
-            content:
-                Text(content, style: Theme.of(context).textTheme.displaySmall),
-            actions: [
-              OutlinedButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text("Não",
-                      style: Theme.of(context).textTheme.displaySmall)),
-              OutlinedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text("Sim",
-                      style: Theme.of(context).textTheme.displaySmall))
-            ],
-          );
-        });
-  }
+  
 
   void choosed() async {
     if (nomeController.text.isNotEmpty) {
       if (indexImageSelected == -1) {
-        final result = await confirmationDialog("Não deseja escolher uma imagem?",
-          "Clique em sim para prosseguir sem escolher uma imagem");
+        final result = await confirmationDialog(
+            "Não deseja escolher uma imagem?",
+            "Clique em sim para prosseguir sem escolher uma imagem",
+            context);
         if (!result!) {
           return;
-        } 
-      } 
+        }
+      }
       if (!context.mounted) return;
       final results = {
-        "nick": widget.gameData.players[nextPlayerIndex].nick, 
+        "nick": widget.gameData.players[nextPlayerIndex].nick,
         "toGuess": nomeController.text,
         "image": indexImageSelected != -1 ? images[indexImageSelected] : ""
       };
@@ -129,52 +109,65 @@ class _SelectToGuessState extends State<SelectToGuess> {
   Widget build(BuildContext context) {
     return Dialog.fullscreen(
       child: Scaffold(
+          bottomNavigationBar: ElevatedButton(
+              onPressed: choosed,
+              child: Text(
+                "Escolhido",
+                style: Theme.of(context).textTheme.bodySmall,
+              )),
           appBar: AppBar(
+            centerTitle: true,
             title: Text(
-                "Escolha o que ${widget.gameData.players[nextPlayerIndex].nick} deve adivinhar"),
+              "${widget.gameData.players[nextPlayerIndex].nick}",
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
             automaticallyImplyLeading: false,
           ),
-          body: Column(
-            children: [
-              TextField(
-                decoration: InputDecoration(
-                    labelText:
-                        "Digite aqui o que ${widget.gameData.players[nextPlayerIndex].nick} deve adivinhar"),
-                controller: nomeController,
-              ),
-              const SizedBox(
-                height: 30,
-              ),
-              ElevatedButton(
-                  onPressed: searchImages,
-                  child: Text(
-                    "Buscar imagem",
-                    style: Theme.of(context).textTheme.bodySmall,
-                  )),
-              const SizedBox(
-                height: 30,
-              ),
-              Flexible(
-                child: _isLoading
-                    ? const CircularProgressIndicator()
-                    : images.isEmpty
-                        ? const Expanded(
-                            child: Text('Press the button to load images'))
-                        : Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: ImagesToGuess(
-                                images: images,
-                                callBackFunction: setImageSelectedIndex,
-                                indexImageSelected: indexImageSelected),
-                          ),
-              ),
-              ElevatedButton(
-                  onPressed: choosed,
-                  child: Text(
-                    "Escolhido",
-                    style: Theme.of(context).textTheme.bodySmall,
-                  )),
-            ],
+          body: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              children: [
+                TextField(
+                  style: Theme.of(context).textTheme.bodySmall,
+                  decoration: InputDecoration(
+                      labelText:
+                          "O que ${widget.gameData.players[nextPlayerIndex].nick} deve adivinhar?",
+                      labelStyle: Theme.of(context).textTheme.bodyMedium),
+                  controller: nomeController,
+                ),
+                const SizedBox(
+                  height: 30,
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    ElevatedButton(
+                        onPressed: searchImages,
+                        child: Text(
+                          "Buscar imagem",
+                          style: Theme.of(context).textTheme.bodySmall,
+                        )),
+                  ],
+                ),
+                const SizedBox(
+                  height: 30,
+                ),
+                Flexible(
+                  child: _isLoading
+                      ? const CircularProgressIndicator()
+                      : images.isEmpty
+                          ? Expanded(
+                              child: Text('Busque uma imagem!', style: Theme.of(context).textTheme.bodyMedium,))
+                          : Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: ImagesToGuess(
+                                  images: images,
+                                  callBackFunction: setImageSelectedIndex,
+                                  indexImageSelected: indexImageSelected),
+                            ),
+                ),
+              ],
+            ),
           )),
     );
   }

@@ -4,22 +4,41 @@ import 'package:flutter/material.dart';
 import 'package:quem_sou_eu/data/game_data/game_data.dart';
 import 'package:quem_sou_eu/data/game_data/game_packet.dart';
 import 'package:quem_sou_eu/data/game_data/game_states.dart';
-import 'package:quem_sou_eu/data/server/server.dart';
+import 'package:quem_sou_eu/screens/utils/utils.dart';
 
 class ActionsBar extends StatelessWidget {
   const ActionsBar({super.key, required this.gameData, required this.socket});
 
   final GameData gameData;
   final RawDatagramSocket? socket;
+  
+  void restartGame(context) async {
+    final result = await confirmationDialog("Reiniciar o jogo", "Deseja reiniciar o jogo?", context);
+    if (!result!) return;
+    GamePacket packet = gameData.myPlayer.createRestartGamePacket();
+    if (gameData.myPlayer.isHost) {
+      gameData.setGameState = GameState.waitingPlayers;
+      gameData.sendPacketToAllPlayers(socket!, packet);
+      gameData.restartGame();
+    }
+  }
 
   void changeToSelectOrderState() {
     GamePacket packet = gameData.myPlayer.createChangeStatePacket(GameState.waitingHostSelectOrder);
-    socket?.send(packet.toString().codeUnits, InternetAddress(Server.multicastAddress), gameData.gamePort);
+    if (gameData.myPlayer.isHost) {
+      gameData.setGameState = GameState.waitingHostSelectOrder;
+      gameData.sendPacketToAllPlayers(socket!, packet);
+    }
   }
 
   void sendPacketPassTurn() {
     GamePacket packet = gameData.myPlayer.createPassTurnPacket();
-    socket?.send(packet.toString().codeUnits, InternetAddress(Server.multicastAddress), gameData.gamePort);
+    if (gameData.myPlayer.isHost) {
+      gameData.sendPacketToAllPlayers(socket!, packet);
+    } else {
+      socket?.send(packet.toString().codeUnits, gameData.hostIP, gameData.gamePort);
+    }
+    gameData.passTurn();
   }
 
   List<Widget> buildBar(BuildContext context) {
@@ -31,6 +50,9 @@ class ActionsBar extends StatelessWidget {
             onPressed: changeToSelectOrderState,
             child: Text("Selecionar ordem",
                 style: Theme.of(context).textTheme.bodySmall)));
+        lista.add(
+          Text("Ip: ${gameData.hostIP.address}\nPorta: ${gameData.gamePort}", style: Theme.of(context).textTheme.bodySmall)
+        );
       } 
     } else {
       if (gameData.isWaitingPlayers()) {
@@ -59,8 +81,14 @@ class ActionsBar extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall)));
       } else {
         lista.add(
-          Text("Vez de  ${gameData.whosTurn}")
+          Text("Vez de ${gameData.whosTurn}")
         );
+      }
+      if (gameData.myPlayer.isHost) {
+        lista.add(ElevatedButton(
+            onPressed: () => restartGame(context),
+            child: Text("Reiniciar jogo",
+                style: Theme.of(context).textTheme.bodySmall)));
       }
     }
     return lista;

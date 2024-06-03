@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'dart:io';
 
-import 'package:android_multicast_lock/android_multicast_lock.dart';
 import 'package:flutter/material.dart';
 import 'package:quem_sou_eu/data/game_data/game_data.dart';
 import 'package:quem_sou_eu/data/game_data/game_packet.dart';
@@ -10,7 +10,7 @@ import 'package:quem_sou_eu/data/server/server.dart';
 import 'package:quem_sou_eu/screens/game/game.dart';
 
 class FindLobby extends StatefulWidget {
-  const FindLobby({Key? key}) : super(key: key);
+  const FindLobby({super.key});
 
   @override
   State<FindLobby> createState() => _FindLobbyState();
@@ -23,74 +23,114 @@ class _FindLobbyState extends State<FindLobby> {
 
   final portController = TextEditingController();
 
+  final ipController = TextEditingController();
+
   String mensagemDeErro = "";
 
-  @override
-  void initState() {
-    if (Platform.isAndroid) {
-      print("Pegando multicast");
-      MulticastLock().acquire();
-    }
-    
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    if (Platform.isAndroid) {
-      print("Soltando multicast");
-      MulticastLock().release();
-    }
-    super.dispose();
-  }
-  
-
   void connectToLobby(BuildContext context) async {
-    mensagemDeErro = "";
-    if (_formKey.currentState!.validate()) {
+    setState(() {
+      mensagemDeErro = "";
+    });
+
+    if (validateForm()) {
       int port = int.parse(portController.text);
-      Player myPlayer = Player(nickController.text);
-      GameData gameData = GameData(myPlayer, port);
+      InternetAddress myIP = await Server.getIP();
+      Player myPlayer = Player(nickController.text, myIP);
+      InternetAddress hostIP = InternetAddress(ipController.text);
+      GameData gameData = GameData(myPlayer, 6666, hostIP, "", "");
+
       try {
-        RawDatagramSocket? socket = await Server.start(port);
+        RawDatagramSocket? socket = await createAndListenSocket(myIP, gameData);
         if (socket != null) {
-          Server.startToListen(socket, gameData.processPacket);
-          GamePacket packet = GamePacket(
-            fromHost: false,
-            playerNick: myPlayer.nick,
-            type: PacketType.findLobby
-          );
-          socket.send(packet.toString().codeUnits, InternetAddress(Server.multicastAddress), port); 
+          sendFindLobbyPacket(socket, myIP, hostIP, port);
+          waitForResponse(context, gameData, myIP, hostIP, port);
         } else {
+          print("Erro ao criar socket");
           return;
         }
-        await Future.delayed(const Duration(seconds: 5), () {
-          if (gameData.canConnect["changed"] == true) {
-            print("RESPOSTA OUVIDA ${gameData.canConnect["nickUnavailable"]}");
-            if (gameData.canConnect["canConnect"] == true) {
-              Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => Game(
-                                player: Player(nickController.text),
-                                port: int.parse(portController.text)
-                              )),
-                    );
-            } else if (gameData.canConnect["nickUnavailable"] == true) {
-              setState(() {
-                mensagemDeErro = "Nick indisponível";
-              });
-            }
-          } else {   
-            setState(() {
-              mensagemDeErro = "Partida não encontrada";
-            });
-          }
-        });
-        
       } catch (e) {
         throw Exception("Erro ao tentar se conectar");
       }
+    }
+  }
+
+  bool validateForm() {
+    return _formKey.currentState?.validate() ?? false;
+  }
+
+  Future<RawDatagramSocket?> createAndListenSocket(
+      InternetAddress myIP, GameData gameData) async {
+    try {
+      RawDatagramSocket? socket = await Server.start(6666, myIP);
+      if (socket != null) {
+        Server.startToListen(socket, gameData.processPacket);
+      }
+      return socket;
+    } catch (e) {
+      print("Erro ao criar socket: $e");
+      return null;
+    }
+  }
+
+  void sendFindLobbyPacket(RawDatagramSocket socket, InternetAddress myIP,
+      InternetAddress hostIP, int port) {
+    GamePacket packet = GamePacket(
+      playerIP: myIP,
+      fromHost: false,
+      playerNick: nickController.text,
+      type: PacketType.findLobby,
+    );
+    socket.send(packet.toString().codeUnits, hostIP, port);
+  }
+
+  void waitForResponse(BuildContext context, GameData gameData,
+      InternetAddress myIP, InternetAddress hostIP, int port) {
+    int count = 0;
+    mensagemDeErro = "Buscando...";
+    Timer.periodic(const Duration(seconds: 1), (Timer timer) {
+      if (count < 5) {
+        if (gameData.canConnect["changed"] == true) {
+          timer.cancel();
+          processResponse(context, gameData, myIP, hostIP, port);
+        }
+        count++;
+      } else {
+        setState(() {
+          mensagemDeErro = "Partida não encontrada";
+        });
+        timer.cancel();
+      }
+    });
+  }
+
+  void processResponse(BuildContext context, GameData gameData,
+      InternetAddress myIP, InternetAddress hostIP, int port) async {
+    if (gameData.canConnect["canConnect"] == true) {
+      final resultado = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Game(
+            player: Player(nickController.text, myIP),
+            port: port,
+            hostIP: hostIP,
+            lobbyName: gameData.canConnect["lobbyName"],
+            theme: gameData.canConnect["theme"],
+          ),
+        ),
+      );
+      print(resultado);
+      if (resultado == "Host saiu") {
+        await showDialog(context: context, builder: (context)  {
+          return AlertDialog(
+            title: Text("O host saiu", style: Theme.of(context).textTheme.bodyMedium,),
+            content: Text("Você foi retirado da sala porque o host saiu.", style: Theme.of(context).textTheme.bodySmall),
+          );
+        });
+      }
+    } else if (gameData.canConnect["nickUnavailable"] == true) {
+      setState(() {
+        mensagemDeErro = "Nick indisponível";
+      });
     }
   }
 
@@ -135,6 +175,22 @@ class _FindLobbyState extends State<FindLobby> {
                     ),
                     TextFormField(
                       style: Theme.of(context).textTheme.bodySmall,
+                      controller: ipController,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, insira o ip';
+                        } else if (InternetAddress.tryParse(value) == null) {
+                          return 'Formto de ip inválido';
+                        }
+                        return null;
+                      },
+                      decoration: InputDecoration(
+                        labelText: "Ip do host",
+                        labelStyle: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    TextFormField(
+                      style: Theme.of(context).textTheme.bodySmall,
                       controller: portController,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -160,7 +216,13 @@ class _FindLobbyState extends State<FindLobby> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Text(mensagemDeErro, style: Theme.of(context).textTheme.bodySmall!.copyWith(color: Colors.red),)
+                    Text(
+                      mensagemDeErro,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall!
+                          .copyWith(color: Colors.red),
+                    )
                   ],
                 ),
               ),

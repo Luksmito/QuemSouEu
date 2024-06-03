@@ -7,7 +7,7 @@ import 'package:quem_sou_eu/data/game_data/packet_types.dart';
 import 'package:quem_sou_eu/data/player/player.dart';
 import 'package:quem_sou_eu/data/server/server.dart';
 
-class GameDataCMD{
+class GameDataCMD {
   final Player myPlayer;
   final List<Player> players = [];
   GameState gameState = GameState.waitingPlayers;
@@ -23,31 +23,58 @@ class GameDataCMD{
     players.add(player);
   }
 
+  void sendPacketToAllPlayers(RawDatagramSocket socket, GamePacket packet) {
+    for (var player in players) {
+      print("Enviando para $player");
+      if (player.nick != myPlayer.nick) {
+        socket.send(packet.toString().codeUnits, player.myIP, gamePort);
+      }
+    }
+  }
+
+  List<Map<String,String>> generatePlayersInLobby() {
+    return List<Map<String, String>>.generate(
+                players.length,
+                (index) => {
+                      "nick": players[index].nick,
+                      "ip": players[index].myIP.address
+                    });
+  }
+
   void processNewPlayerPacket(GamePacket packet, RawDatagramSocket socket) {
     if (onLobby) {
-        print("Adicionando player ${packet.playerNick}");
-        addPlayer(Player(packet.playerNick));
-        if (myPlayer.isHost) {
-          print("Host enviando para o novo player o pacote com os players da sala");
-          GamePacket gamePacket = GamePacket(
-              fromHost: true,
-              playerNick: myPlayer.nick,
-              type: PacketType.sendPlayersAlreadyInLobby,
-              playersAlreadyInLobby: List<String>.generate(players.length, (index) => players[index].nick)
-          );
-          print(gamePacket.toString());
-          socket.send(json.encode(gamePacket.toJson()).codeUnits,
-              InternetAddress(Server.multicastAddress), gamePort);
-        }
+      print("Adicionando player ${packet.playerNick}");
+      addPlayer(Player(packet.playerNick, packet.playerIP));
+      if (myPlayer.isHost) {
+        print(
+            "Host enviando para o novo player o pacote com os players da sala");
+        GamePacket gamePacket = GamePacket(
+            fromHost: true,
+            playerNick: myPlayer.nick,
+            playerIP: myPlayer.myIP,
+            type: PacketType.sendPlayersAlreadyInLobby,
+            playersAlreadyInLobby: generatePlayersInLobby());
+
+        print(gamePacket.toString());
+        socket.send(gamePacket.toString().codeUnits, packet.playerIP,
+            gamePort);
+        gamePacket = GamePacket(
+          fromHost: true,
+          playerNick: packet.playerNick,
+          playerIP: packet.playerIP,
+          type: PacketType.newPlayer,
+        );
+        sendPacketToAllPlayers(socket, packet);
       }
+    }
   }
 
   void processPacket(String packet, RawDatagramSocket socket) {
     print("Packet Received $packet");
     GamePacket newPacket = GamePacket.fromString(packet);
     if (newPacket.playerNick == myPlayer.nick) {
-        print("Pacote recebido de mim mesmo");
-        return;
+      print("Pacote recebido de mim mesmo");
+      return;
     }
     switch (newPacket.type) {
       case PacketType.newPlayer:
@@ -56,13 +83,16 @@ class GameDataCMD{
         }
         break;
       case PacketType.sendPlayersAlreadyInLobby:
+      print("Cheguei aqui");
         if (!onLobby) {
           print("Recebendo players já cadastrados");
           for (int i = 0; i < newPacket.playersAlreadyInLobby!.length; i++) {
-            String nick = newPacket.playersAlreadyInLobby![i];
+            var nick =  newPacket.playersAlreadyInLobby![i]["nick"]!;
+            var ip = newPacket.playersAlreadyInLobby![i]["ip"]!;
             if (nick != myPlayer.nick) {
-              print("Player Recebido $nick");
-              addPlayer(Player(nick));
+              print("Player Recebido ${newPacket.playersAlreadyInLobby![i]}");
+              
+              addPlayer(Player(nick, InternetAddress(ip)));
             }
           }
           onLobby = true;
@@ -70,12 +100,12 @@ class GameDataCMD{
         break;
       case PacketType.gameStateChange:
         gameState = newPacket.newGameState!;
-        if (gameState == GameState.waitingPlayerChooseToGuess) {
+        /*if (gameState == GameState.waitingPlayerChooseToGuess) {
           players.clear();
           for (var player in newPacket.playerOrder!) {
             players.add(Player(player));
           }
-        }
+        }*/
         break;
       default:
         break;
@@ -88,7 +118,7 @@ class GameDataCMD{
     }
   }
 
-   bool isWaitingPlayers() {
+  bool isWaitingPlayers() {
     return gameState == GameState.waitingPlayers;
   }
 }

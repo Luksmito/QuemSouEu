@@ -11,21 +11,41 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  
   @override
   Widget build(BuildContext context) {
+    final colorScheme =   ColorScheme.fromSeed(seedColor: Color.fromARGB(255, 14, 2, 27));
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-        textTheme: const TextTheme(
+        scaffoldBackgroundColor: colorScheme.background,
+        appBarTheme: AppBarTheme(
+          backgroundColor: colorScheme.background
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ButtonStyle(
+            foregroundColor: MaterialStateProperty.all(colorScheme.onPrimary),
+            backgroundColor: MaterialStateProperty.resolveWith((state) {
+              if (state.contains(MaterialState.pressed)) {
+                return colorScheme.inversePrimary;
+              } 
+              return colorScheme.primary;
+            })
+          ),
+        ),
+        textTheme: TextTheme(
           bodyLarge: TextStyle(
             fontSize: 30,
             fontWeight: FontWeight.bold,
+            color: colorScheme.onPrimaryContainer
           ), 
-          bodyMedium: TextStyle(
+          bodyMedium: const TextStyle(
             fontSize: 20,
           ),
-          bodySmall: TextStyle(
+          bodySmall: const TextStyle(
+            fontSize: 12,
+          ),
+          labelLarge: const TextStyle(
             fontSize: 12,
           )
         ),

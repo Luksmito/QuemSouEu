@@ -1,25 +1,31 @@
-/*import 'dart:io';
-
-import 'package:quem_sou_eu/data/server/server.dart';
-
-void funcaoCallback(String message) {
-  print("No callback $message");
-}
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 void main() async {
-  RawDatagramSocket? socket1 = await Server.start();
-  
-  if (socket1 != null) {  
-    socket1.joinMulticast(InternetAddress(Server.multicastAddress));
-    while (true) {
-      String? input = stdin.readLineSync();
-      print("Mensagem a ser enviada $input");
-      int n = socket1.send(input!.codeUnits, InternetAddress(Server.multicastAddress), Server.multicastPort);
-      print("N: $n");
-    }
-      
-  }
+  final String targetAddress = '10.0.0.104'; // Substitua pelo endereço IP de destino
+  final int targetPort = 6969; // Substitua pela porta de destino
 
-  
+  RawDatagramSocket.bind(InternetAddress.anyIPv4, 6969).then((RawDatagramSocket socket) {
+    print('Socket bound to ${socket.address.address}:${socket.port}');
 
-}*/
+    Timer.periodic(Duration(seconds: 5), (timer) {
+      String message = 'Hello, world!';
+      List<int> data = utf8.encode(message);
+      socket.send(data, InternetAddress(targetAddress), targetPort);
+      print('Sent message: $message to $targetAddress:$targetPort');
+    });
+
+    socket.listen((RawSocketEvent event) {
+      if (event == RawSocketEvent.read) {
+        Datagram? datagram = socket.receive();
+        if (datagram != null) {
+          String receivedMessage = utf8.decode(datagram.data);
+          print('Received message: $receivedMessage from ${datagram.address.address}:${datagram.port}');
+        }
+      }
+    });
+  }).catchError((e) {
+    print('Error binding socket: $e');
+  });
+}
