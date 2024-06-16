@@ -6,7 +6,7 @@ enum GameState {
   iChoosedToGuess
 }
 
-GameState? gameStateFromString(String value) {
+GameState? gameStateFromString(String? value) {
   switch (value) {
     case 'GameState.waitingPlayers':
       return GameState.waitingPlayers;

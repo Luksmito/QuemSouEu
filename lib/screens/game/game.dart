@@ -12,13 +12,14 @@ import 'package:quem_sou_eu/screens/game/select_order.dart';
 import 'package:quem_sou_eu/screens/game/select_to_guess.dart';
 
 class Game extends StatefulWidget {
-  const Game(
-      {super.key,
-      required this.player,
-      required this.port,
-      required this.hostIP,
-      required this.lobbyName,
-      required this.theme
+  const Game({
+    super.key,
+    required this.player,
+    required this.port,
+    required this.hostIP,
+    required this.lobbyName,
+    required this.theme,
+    required this.servidor,
   });
 
   final Player player;
@@ -26,33 +27,40 @@ class Game extends StatefulWidget {
   final InternetAddress hostIP;
   final String lobbyName;
   final String theme;
-
+  final bool servidor;
   @override
   State<Game> createState() => _GameState();
 }
 
 class _GameState extends State<Game> {
-  late GameData gameData = GameData(widget.player, widget.port, widget.hostIP, widget.lobbyName, widget.theme);
-  RawDatagramSocket? socket;
+  late GameData gameData = GameData(widget.player, widget.port, widget.hostIP,
+      widget.lobbyName, widget.theme, widget.servidor);
+  var socket;
 
   void initializeSocket() async {
-    await Server.start(gameData.gamePort, widget.player.myIP)
-        .then((RawDatagramSocket? result) {
-      if (result != null) {
-        socket = result;
-        if (socket != null) {
-          Server.startToListen(socket!, gameData.processPacket);
+    if (widget.servidor) {
+      socket = await Server.startClient(gameData.processPacketLocal);
+      GamePacket newPlayerPacket = widget.player.createNewPlayerPacket();
+      newPlayerPacket.lobbyName = gameData.lobbyName;
+      socket.write(newPlayerPacket.toString());
+    } else {
+      await Server.start(gameData.gamePort, widget.player.myIP)
+          .then((RawDatagramSocket? result) {
+        if (result != null) {
+          socket = result;
+          if (socket != null) {
+            Server.startToListen(socket!, gameData.processPacketLocal);
+          }
+          if (!widget.player.isHost) {
+            GamePacket newPlayerPacket = widget.player.createNewPlayerPacket();
+            socket!.send(newPlayerPacket.toString().codeUnits, widget.hostIP,
+                gameData.gamePort);
+          }
+        } else {
+          Navigator.pop(context);
         }
-        if (!widget.player.isHost) {
-          GamePacket newPlayerPacket = widget.player.createNewPlayerPacket();
-          print("ENVIANDO PACOTE DO MEU PLAYER");
-          socket!.send(newPlayerPacket.toString().codeUnits, widget.hostIP,
-              gameData.gamePort);
-        }
-      } else {
-        Navigator.pop(context);
-      }
-    });
+      });
+    }
   }
 
   void showSelectOrder() {
@@ -64,6 +72,7 @@ class _GameState extends State<Game> {
     );
   }
 
+
   void showSelectToGuess() async {
     final toGuess = await showDialog<Map<String, String>>(
       context: context,
@@ -73,7 +82,7 @@ class _GameState extends State<Game> {
     );
     GamePacket packet = widget.player.createSetToGuessPacket(toGuess!);
     gameData.setToGuess(packet);
-    if (widget.player.isHost) {
+    if (widget.player.isHost && !gameData.isServer) {
       gameData.sendPacketToAllPlayers(socket!, packet);
       if (gameData.isAllPlayersToGuessSetted()) {
         print("Todos selecionaram toGuess");
@@ -83,8 +92,13 @@ class _GameState extends State<Game> {
         gameData.setGameState = GameState.gameStarting;
       }
     } else {
-      socket!.send(
-          packet.toString().codeUnits, gameData.hostIP, gameData.gamePort);
+      if (gameData.isServer) {
+        packet.lobbyName = gameData.lobbyName;
+        socket.write(packet.toString());
+      } else {
+        socket!.send(
+            packet.toString().codeUnits, gameData.hostIP, gameData.gamePort);
+      }
     }
     gameData.setGameState = GameState.iChoosedToGuess;
   }
@@ -101,8 +115,13 @@ class _GameState extends State<Game> {
   @override
   void dispose() {
     super.dispose();
-    gameData.sendPacketToAllPlayers(socket!, widget.player.createQuitGamePacket());
-    socket!.close();
+    if (!widget.servidor) {
+      gameData.sendPacketToAllPlayers(
+          socket!, widget.player.createQuitGamePacket());
+      socket!.close();
+    } else {
+      socket.destroy();
+    }
   }
 
   void handleGameState() {
@@ -117,7 +136,8 @@ class _GameState extends State<Game> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         showSelectToGuess();
       });
-    }
+    } else if (gameData.isMyTurn &&
+        gameData.gameState == GameState.gameStarting) {}
   }
 
   @override
@@ -131,8 +151,14 @@ class _GameState extends State<Game> {
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(widget.lobbyName, style: Theme.of(context).textTheme.bodyLarge,),
-                  Text("Tema: ${widget.theme}", style: Theme.of(context).textTheme.bodySmall,)
+                  Text(
+                    widget.lobbyName,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  Text(
+                    "Tema: ${widget.theme}",
+                    style: Theme.of(context).textTheme.bodySmall,
+                  )
                 ],
               ),
             ),

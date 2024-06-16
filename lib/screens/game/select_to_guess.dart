@@ -1,18 +1,18 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:quem_sou_eu/data/game_data/game_data.dart';
 import 'package:http/http.dart' as http;
 import 'package:quem_sou_eu/screens/game/image_to_guess.dart';
 import 'package:quem_sou_eu/screens/utils/utils.dart';
+import 'package:quem_sou_eu/theme/container_theme.dart';
 
 class SelectToGuess extends StatefulWidget {
   const SelectToGuess(
       {super.key, required this.gameData, required this.socket});
 
   final GameData gameData;
-  final RawDatagramSocket? socket;
+  final dynamic socket;
 
   @override
   State<SelectToGuess> createState() => _SelectToGuessState();
@@ -107,68 +107,75 @@ class _SelectToGuessState extends State<SelectToGuess> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog.fullscreen(
-      child: Scaffold(
-          bottomNavigationBar: ElevatedButton(
-              onPressed: choosed,
-              child: Text(
-                "Escolhido",
-                style: Theme.of(context).textTheme.bodySmall,
-              )),
-          appBar: AppBar(
-            centerTitle: true,
-            title: Text(
-              "${widget.gameData.players[nextPlayerIndex].nick}",
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            automaticallyImplyLeading: false,
-          ),
-          body: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                TextField(
+    return PopScope(
+      canPop: false,
+      child: Dialog.fullscreen(
+        child: Scaffold(
+            bottomNavigationBar: Container(
+                decoration: buttonContainerTheme(context),
+              child: ElevatedButton(
+                onPressed: choosed,
+                child: Text(
+                  "Escolhido",
                   style: Theme.of(context).textTheme.bodySmall,
-                  decoration: InputDecoration(
-                      labelText:
-                          "O que ${widget.gameData.players[nextPlayerIndex].nick} deve adivinhar?",
-                      labelStyle: Theme.of(context).textTheme.bodyMedium),
-                  controller: nomeController,
-                ),
-                const SizedBox(
-                  height: 30,
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    ElevatedButton(
-                        onPressed: searchImages,
-                        child: Text(
-                          "Buscar imagem",
-                          style: Theme.of(context).textTheme.bodySmall,
-                        )),
-                  ],
-                ),
-                const SizedBox(
-                  height: 30,
-                ),
-                Flexible(
-                  child: _isLoading
-                      ? const CircularProgressIndicator()
-                      : images.isEmpty
-                          ? Expanded(
-                              child: Text('Busque uma imagem!', style: Theme.of(context).textTheme.bodyMedium,))
-                          : Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: ImagesToGuess(
-                                  images: images,
-                                  callBackFunction: setImageSelectedIndex,
-                                  indexImageSelected: indexImageSelected),
-                            ),
-                ),
-              ],
+                ))),
+            appBar: AppBar(
+              centerTitle: true,
+              title: Text(
+                "${widget.gameData.players[nextPlayerIndex].nick}",
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              automaticallyImplyLeading: false,
             ),
-          )),
+            body: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                children: [
+                  TextField(
+                    style: Theme.of(context).textTheme.bodySmall,
+                    decoration: InputDecoration(
+                        labelText:
+                            "O que ${widget.gameData.players[nextPlayerIndex].nick} deve adivinhar?",
+                        labelStyle: Theme.of(context).textTheme.bodyMedium),
+                    controller: nomeController,
+                  ),
+                  const SizedBox(
+                    height: 30,
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Container(
+                decoration: buttonContainerTheme(context),
+              child: ElevatedButton(
+                          onPressed: searchImages,
+                          child: Text(
+                            "Buscar imagem",
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ))),
+                    ],
+                  ),
+                  const SizedBox(
+                    height: 30,
+                  ),
+                  Flexible(
+                    child: _isLoading
+                        ? const CircularProgressIndicator()
+                        : images.isEmpty
+                            ? Expanded(
+                                child: Text('Busque uma imagem!', style: Theme.of(context).textTheme.bodyMedium,))
+                            : Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: ImagesToGuess(
+                                    images: images,
+                                    callBackFunction: setImageSelectedIndex,
+                                    indexImageSelected: indexImageSelected),
+                              ),
+                  ),
+                ],
+              ),
+            )),
+      ),
     );
   }
 }

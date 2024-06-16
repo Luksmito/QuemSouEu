@@ -19,6 +19,7 @@ class GamePacket {
   String? newPlayerNick;
   String? lobbyName;
   String? theme;
+  String? password;
 
   GamePacket(
       {required this.fromHost,
@@ -33,10 +34,12 @@ class GamePacket {
       this.response,
       this.newPlayerNick,
       this.lobbyName,
-      this.theme
+      this.theme,
+      this.password
       });
 
   factory GamePacket.fromMap(Map<String, dynamic> packet) {
+    
     return GamePacket(
         fromHost: packet["fromHost"],
         playerNick: packet["playerNick"],
@@ -63,32 +66,35 @@ class GamePacket {
         image: packet["image"],
         response: packet["response"],
         lobbyName: packet["lobbyName"],
-        theme: packet["theme"]
+        theme: packet["theme"],
+        password: packet["password"]
       );
   }
 
   factory GamePacket.fromString(String packet) {
     Map<String, dynamic> map = json.decode(packet);
-    print("AQUI");
     return GamePacket.fromMap(map);
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    Map<String, dynamic> data = {
       'playerNick': playerNick,
       'fromHost': fromHost,
       'playerIP': playerIP.address,
       'type': type.toString(),
-      'newGameState': newGameState.toString(),
-      'playersAlreadyInLobby': playersAlreadyInLobby,
-      'playerOrder': playerOrder,
-      'toGuess': toGuess,
-      'image': image,
-      'response': response,
-      'newPlayerNick': newPlayerNick,
-      'lobbyName': lobbyName,
-      'theme': theme
     };
+
+    if (newGameState != null) data['newGameState'] = newGameState.toString();
+    if (playersAlreadyInLobby != null) data['playersAlreadyInLobby'] = playersAlreadyInLobby;
+    if (playerOrder != null) data['playerOrder'] = playerOrder;
+    if (toGuess != null) data['toGuess'] = toGuess;
+    if (image != null) data['image'] = image;
+    if (response != null) data['response'] = response;
+    if (newPlayerNick != null) data['newPlayerNick'] = newPlayerNick;
+    if (lobbyName != null) data['lobbyName'] = lobbyName;
+    if (theme != null) data['theme'] = theme;
+    if (password != null) data['password'] = password;
+    return data;
   }
 
   @override

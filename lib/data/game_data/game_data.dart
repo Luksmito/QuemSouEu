@@ -7,19 +7,21 @@ import 'package:quem_sou_eu/data/game_data/packet_types.dart';
 import 'package:quem_sou_eu/data/player/player.dart';
 
 class GameData with ChangeNotifier {
-
   final Player myPlayer;
   final List<Player> players = [];
   final int gamePort;
   final InternetAddress hostIP;
   final String lobbyName;
   final String theme;
+  final bool isServer;
 
   GameState gameState = GameState.waitingPlayers;
   late bool onLobby;
   bool isMyTurn = false;
   String whosTurn = "";
   bool quitGame = false;
+  List<String> messages = [];
+
 
   Map<String, dynamic> canConnect = {
     "canConnect": false,
@@ -29,9 +31,15 @@ class GameData with ChangeNotifier {
     "theme": ""
   };
 
-  GameData(this.myPlayer, this.gamePort, this.hostIP, this.lobbyName, this.theme) {
+  GameData(this.myPlayer, this.gamePort, this.hostIP, this.lobbyName,
+      this.theme, this.isServer) {
     players.add(myPlayer);
     onLobby = myPlayer.isHost;
+  }
+
+  void addMessage(String message) {
+    messages.add(message);
+    notifyListeners();
   }
 
   int findIndexNextPlayer(String nick) {
@@ -52,7 +60,7 @@ class GameData with ChangeNotifier {
     notifyListeners();
   }
 
-  void sendPacketToAllPlayers(RawDatagramSocket socket, GamePacket packet) {
+  void sendPacketToAllPlayers(socket, GamePacket packet) {
     for (var player in players) {
       print("Enviando para $player");
       if (player.nick != myPlayer.nick) {
@@ -68,14 +76,14 @@ class GameData with ChangeNotifier {
             {"nick": players[index].nick, "ip": players[index].myIP.address});
   }
 
-  void processNewPlayerPacket(GamePacket packet, RawDatagramSocket socket) {
+  void processNewPlayerPacket(GamePacket packet, socket) {
     if (onLobby) {
       print("Adicionando player ${packet.playerNick}");
       if (packet.newPlayerNick != myPlayer.nick) {
         addPlayer(Player(packet.newPlayerNick!, packet.playerIP));
       }
 
-      if (myPlayer.isHost) {
+      if (myPlayer.isHost && !isServer) {
         print(
             "Host enviando para o novo player o pacote com os players da sala");
         GamePacket gamePacket = GamePacket(
@@ -109,7 +117,6 @@ class GameData with ChangeNotifier {
         break;
       }
     }
-    
   }
 
   bool isAllPlayersToGuessSetted() {
@@ -133,15 +140,21 @@ class GameData with ChangeNotifier {
     }
   }
 
-  void processPacket(String packet, RawDatagramSocket socket) {
+  void processPacketLocal(String packet, socket) {
     print("Packet Received $packet");
     print("Sou host?: ${myPlayer.isHost}");
     GamePacket newPacket = GamePacket.fromString(packet);
-    if (newPacket.playerNick == myPlayer.nick && newPacket.type != PacketType.setToGuess) {
+    if (newPacket.playerNick == myPlayer.nick &&
+        newPacket.type != PacketType.setToGuess &&
+        newPacket.type != PacketType.restartGame) {
       return;
     }
-    print("newPacket.type: ${newPacket.type}");
     switch (newPacket.type) {
+      case PacketType.packetResponse:
+        if (newPacket.response != "SUCCESS") {
+          quitGame = true;
+        }
+        break;
       case PacketType.newPlayer:
         if (isWaitingPlayers() && newPacket.newPlayerNick != myPlayer.nick) {
           processNewPlayerPacket(newPacket, socket);
@@ -162,12 +175,10 @@ class GameData with ChangeNotifier {
           response.response =
               nicks.contains(newPacket.playerNick) ? "nick indisponivel" : "ok";
           print("Enviando resposta para ${newPacket.playerIP.address}:6666");
-          socket.send(
-              response.toString().codeUnits, newPacket.playerIP, 6666);
+          socket.send(response.toString().codeUnits, newPacket.playerIP, 6666);
         }
       case PacketType.findLobbyResponse:
         if (!onLobby && newPacket.fromHost) {
-          
           canConnect["changed"] = true;
           if (newPacket.response == "ok") {
             canConnect["canConnect"] = true;
@@ -212,16 +223,15 @@ class GameData with ChangeNotifier {
         break;
       case PacketType.setToGuess:
         setToGuess(newPacket);
-        if (myPlayer.isHost) {
+        if (myPlayer.isHost && !isServer) {
           sendPacketToAllPlayers(socket, newPacket);
-          if (isAllPlayersToGuessSetted()) { 
+          if (isAllPlayersToGuessSetted()) {
             GamePacket sendPacket = GamePacket(
                 fromHost: true,
                 playerNick: myPlayer.nick,
                 playerIP: myPlayer.myIP,
                 type: PacketType.gameStateChange,
-                newGameState: GameState.gameStarting
-            );
+                newGameState: GameState.gameStarting);
             setGameState = GameState.gameStarting;
             sendPacketToAllPlayers(socket, sendPacket);
             whosTurn = players[0].nick;
@@ -232,12 +242,18 @@ class GameData with ChangeNotifier {
         return;
       case PacketType.passTurn:
         passTurn();
-        if (myPlayer.isHost) {
+        if (myPlayer.isHost && !isServer) {
           sendPacketToAllPlayers(socket, newPacket);
         }
-        return;      
+        return;
       case PacketType.restartGame:
         restartGame();
+        break;
+      case PacketType.playerDisconnect:
+        players.removeWhere((player) => player.nick == newPacket.playerNick);
+        break;
+      case PacketType.chatMessage:
+        messages.add(newPacket.response!);
         break;
       default:
         break;
@@ -246,11 +262,10 @@ class GameData with ChangeNotifier {
   }
 
   void passTurn() {
-    int index =
-            (players.indexWhere((player) => player.nick == whosTurn) + 1) %
-                players.length;
-        whosTurn = players[index].nick;
-        isMyTurn = whosTurn == myPlayer.nick;
+    int index = (players.indexWhere((player) => player.nick == whosTurn) + 1) %
+        players.length;
+    whosTurn = players[index].nick;
+    isMyTurn = whosTurn == myPlayer.nick;
     notifyListeners();
   }
 
@@ -279,7 +294,7 @@ class GameData with ChangeNotifier {
   bool isGameRunning() {
     return gameState == GameState.gameStarting;
   }
-  
+
   void restartGame() {
     for (var player in players) {
       player.toGuess = null;

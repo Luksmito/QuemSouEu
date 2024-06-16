@@ -11,15 +11,16 @@ class PlayerList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.count(
-      childAspectRatio: 0.6,
+      mainAxisSpacing: 5,
+      crossAxisSpacing: 10,
+      childAspectRatio: 0.57,
       crossAxisCount: 2,
       children: List.generate(gameData.players.length, (index) {
-        return Center(
-            child: PlayerItem(
-          gameData: gameData,
-          player: gameData.players[index],
-          isMyPlayer: gameData.players[index].nick == gameData.myPlayer.nick,
-        ));
+        return PlayerItem(
+                  gameData: gameData,
+                  player: gameData.players[index],
+                  isMyPlayer: gameData.players[index].nick == gameData.myPlayer.nick,
+                );
       }),
     );
   }

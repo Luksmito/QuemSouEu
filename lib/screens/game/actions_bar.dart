@@ -1,103 +1,182 @@
-import 'dart:io';
-
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:quem_sou_eu/data/game_data/game_data.dart';
 import 'package:quem_sou_eu/data/game_data/game_packet.dart';
 import 'package:quem_sou_eu/data/game_data/game_states.dart';
+import 'package:quem_sou_eu/screens/game/chat.dart';
 import 'package:quem_sou_eu/screens/utils/utils.dart';
+import 'package:quem_sou_eu/theme/container_theme.dart';
+import 'package:quem_sou_eu/theme/square_button_theme.dart';
 
-class ActionsBar extends StatelessWidget {
+class ActionsBar extends StatefulWidget {
   const ActionsBar({super.key, required this.gameData, required this.socket});
 
   final GameData gameData;
-  final RawDatagramSocket? socket;
-  
+  final dynamic socket;
+
+  @override
+  State<ActionsBar> createState() => _ActionsBarState();
+}
+
+class _ActionsBarState extends State<ActionsBar> {
+  final List<Widget> linhaDeBaixo = [];
+  bool chatToggle = false;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
   void restartGame(context) async {
-    final result = await confirmationDialog("Reiniciar o jogo", "Deseja reiniciar o jogo?", context);
+    final result = await confirmationDialog(
+        "Reiniciar o jogo", "Deseja reiniciar o jogo?", context);
     if (!result!) return;
-    GamePacket packet = gameData.myPlayer.createRestartGamePacket();
-    if (gameData.myPlayer.isHost) {
-      gameData.setGameState = GameState.waitingPlayers;
-      gameData.sendPacketToAllPlayers(socket!, packet);
-      gameData.restartGame();
+    GamePacket packet = widget.gameData.myPlayer.createRestartGamePacket();
+    if (widget.gameData.myPlayer.isHost && !widget.gameData.isServer) {
+      widget.gameData.setGameState = GameState.waitingPlayers;
+      widget.gameData.sendPacketToAllPlayers(widget.socket!, packet);
+      widget.gameData.restartGame();
+    } else {
+      packet.lobbyName = widget.gameData.lobbyName;
+      widget.gameData.restartGame();
+      widget.socket.write(packet.toString());
     }
   }
 
   void changeToSelectOrderState() {
-    GamePacket packet = gameData.myPlayer.createChangeStatePacket(GameState.waitingHostSelectOrder);
-    if (gameData.myPlayer.isHost) {
-      gameData.setGameState = GameState.waitingHostSelectOrder;
-      gameData.sendPacketToAllPlayers(socket!, packet);
+    if (widget.gameData.players.length == 1) {
+      return;
+    }
+    GamePacket packet = widget.gameData.myPlayer
+        .createChangeStatePacket(GameState.waitingHostSelectOrder);
+    if (widget.gameData.myPlayer.isHost) {
+      widget.gameData.setGameState = GameState.waitingHostSelectOrder;
+      widget.gameData.sendPacketToAllPlayers(widget.socket!, packet);
     }
   }
 
   void sendPacketPassTurn() {
-    GamePacket packet = gameData.myPlayer.createPassTurnPacket();
-    if (gameData.myPlayer.isHost) {
-      gameData.sendPacketToAllPlayers(socket!, packet);
+    GamePacket packet = widget.gameData.myPlayer.createPassTurnPacket();
+    if (widget.gameData.myPlayer.isHost && !widget.gameData.isServer) {
+      widget.gameData.sendPacketToAllPlayers(widget.socket!, packet);
     } else {
-      socket?.send(packet.toString().codeUnits, gameData.hostIP, gameData.gamePort);
+      if (widget.gameData.isServer) {
+        packet.lobbyName = widget.gameData.lobbyName;
+        widget.socket.write(packet.toString());
+      } else {
+        widget.socket?.send(packet.toString().codeUnits, widget.gameData.hostIP,
+            widget.gameData.gamePort);
+      }
     }
-    gameData.passTurn();
+    widget.gameData.passTurn();
   }
 
-  List<Widget> buildBar(BuildContext context) {
-    List<Widget> lista = [];
-    if (gameData.myPlayer.isHost) {
-      if (gameData.isWaitingPlayers()) {
-        lista.clear();
-        lista.add(ElevatedButton(
-            onPressed: changeToSelectOrderState,
-            child: Text("Selecionar ordem",
-                style: Theme.of(context).textTheme.bodySmall)));
-        lista.add(
-          Text("Ip: ${gameData.hostIP.address}\nPorta: ${gameData.gamePort}", style: Theme.of(context).textTheme.bodySmall)
-        );
-      } 
+  void buildBar(BuildContext context) {
+    linhaDeBaixo.clear();
+    if (widget.gameData.myPlayer.isHost) {
+      if (widget.gameData.isWaitingPlayers()) {
+        linhaDeBaixo.add(Flexible(
+            child: Container(
+          decoration: buttonContainerTheme(context),
+          child: ElevatedButton(
+              style: squareButtonTheme(),
+              onPressed: changeToSelectOrderState,
+              child: Text("Selecionar ordem",
+                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                      color: Theme.of(context).colorScheme.onPrimary))),
+        )));
+        if (!widget.gameData.isServer) {
+          linhaDeBaixo.add(Text(
+              "Ip: ${widget.gameData.hostIP.address}\nPorta: ${widget.gameData.gamePort}",
+              style: Theme.of(context).textTheme.bodySmall));
+        }
+      }
     } else {
-      if (gameData.isWaitingPlayers()) {
-        lista.clear();
-        lista.add(
-          Text("Esperando jogadores...", style: Theme.of(context).textTheme.bodyMedium,)
-        );
-      } else if (gameData.isWaitingSelectOrder()) {
-        lista.clear();
-        lista.add(
-          Text("Esperando host escolher a ordem...", style: Theme.of(context).textTheme.bodyMedium,)
-        );
+      if (widget.gameData.isWaitingPlayers()) {
+        linhaDeBaixo.add(Text(
+          "Esperando jogadores...",
+          style: Theme.of(context).textTheme.bodyMedium,
+        ));
+      } else if (widget.gameData.isWaitingSelectOrder()) {
+        linhaDeBaixo.clear();
+        linhaDeBaixo.add(Text(
+          "Esperando host escolher a ordem...",
+          style: Theme.of(context).textTheme.bodyMedium,
+        ));
       }
     }
-    if (gameData.isWaitingChooseToGuess() || gameData.iChoosedToGuess()) {
-      lista.clear();
-      lista.add(
-        const Text("Esperando players...")
-      );
-    } else if (gameData.isGameRunning()) {
-      lista.clear();
-      if (gameData.isMyTurn) {
-        lista.add(ElevatedButton(
-            onPressed: sendPacketPassTurn,
-            child: Text("Passar vez",
-                style: Theme.of(context).textTheme.bodySmall)));
+    if (widget.gameData.isWaitingChooseToGuess() ||
+        widget.gameData.iChoosedToGuess()) {
+      linhaDeBaixo.add(const Text("Esperando players..."));
+    } else if (widget.gameData.isGameRunning()) {
+      linhaDeBaixo.clear();
+      if (widget.gameData.isMyTurn) {
+        linhaDeBaixo.add(Flexible(
+            child: Container(
+          decoration: buttonContainerTheme(context),
+          child: ElevatedButton(
+              style: squareButtonTheme(),
+              onPressed: sendPacketPassTurn,
+              child: Text("Passar vez",
+                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                      color: Theme.of(context).colorScheme.onPrimary))),
+        )));
       } else {
-        lista.add(
-          Text("Vez de ${gameData.whosTurn}")
-        );
+        linhaDeBaixo.add(Text("Vez de ${widget.gameData.whosTurn}"));
       }
-      if (gameData.myPlayer.isHost) {
-        lista.add(ElevatedButton(
-            onPressed: () => restartGame(context),
-            child: Text("Reiniciar jogo",
-                style: Theme.of(context).textTheme.bodySmall)));
+      if (widget.gameData.myPlayer.isHost) {
+        linhaDeBaixo.add(Flexible(
+            child: Container(
+          decoration: buttonContainerTheme(context),
+          child: ElevatedButton(
+              style: squareButtonTheme(),
+              onPressed: () => restartGame(context),
+              child: Text("Reiniciar jogo",
+                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                      color: Theme.of(context).colorScheme.onPrimary))),
+        )));
       }
     }
-    return lista;
+    linhaDeBaixo.add(
+      Flexible(
+          child: Container(
+        decoration: buttonContainerTheme(context),
+        child: IconButton(
+          color: Theme.of(context).colorScheme.onPrimary,
+          icon: const Icon(Icons.chat),
+          style: ButtonStyle(
+              backgroundColor: MaterialStateProperty.all(
+                  Colors.transparent),),
+          onPressed: () {
+            setState(() {
+              chatToggle = !chatToggle;
+            });
+          },
+        ),
+      )),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: buildBar(context),
+    buildBar(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Chat(
+          gameData: widget.gameData,
+          toggle: chatToggle,
+          socket: widget.socket,
+        ),
+        const SizedBox(
+          height: 5,
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: linhaDeBaixo,
+        )
+      ],
     );
   }
 }

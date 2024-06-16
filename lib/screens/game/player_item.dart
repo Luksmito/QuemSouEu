@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:quem_sou_eu/data/game_data/game_data.dart';
 import 'package:quem_sou_eu/data/player/player.dart';
 import 'package:quem_sou_eu/screens/game/overlay.dart';
+import 'package:quem_sou_eu/theme/container_theme.dart';
 
 class PlayerItem extends StatefulWidget {
   const PlayerItem(
@@ -73,74 +74,111 @@ class _PlayerItemState extends State<PlayerItem> {
     );
   }
 
+  Gradient playerItemaGradient(context) {
+    if (widget.gameData.whosTurn == widget.player.nick) {
+      return LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Theme.of(context).colorScheme.primary.withGreen(128),
+          Theme.of(context).colorScheme.secondary.withGreen(128),
+          Theme.of(context).colorScheme.tertiary.withGreen(128),
+        ],
+      );
+    } else {
+      return LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Theme.of(context).colorScheme.primary,
+          Theme.of(context).colorScheme.secondary,
+          Theme.of(context).colorScheme.tertiary,
+        ],
+      );
+    }
+  }
+
+  Border cardBorder(context) {
+    if (widget.gameData.whosTurn == widget.player.nick) {
+      return Border.all(width: 4,color: Colors.green);
+    } else {
+      return Border.all();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: height(context),
-      child: Card(
-        color: widget.gameData.whosTurn == widget.player.nick
-            ? Colors.blue
-            : Colors.blueGrey,
-        elevation: 8,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              children: [
-                image(),
-                if (!widget.isMyPlayer)
-                  Positioned.fill(
-                      child: MyOverlay(
-                    opacityLevel: opacityLevel,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius:
-                            BorderRadius.circular(20), // Define a borda curva
-                        border: Border.all(
-                          color: Colors.black, // Cor da borda
-                          width: 2, // Largura da borda
-                        ),
+    final containerTheme = BoxDecoration(
+      gradient: playerItemaGradient(context),
+      border: cardBorder(context),
+      borderRadius: BorderRadius.circular(10)
+    );
+    return Container(
+      decoration: containerTheme,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Stack(
+            children: [
+              image(),
+              if (!widget.isMyPlayer)
+                Positioned.fill(
+                    child: MyOverlay(
+                  opacityLevel: opacityLevel,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius:
+                          BorderRadius.circular(20), // Define a borda curva
+                      border: Border.all(
+                        color: Colors.black, // Cor da borda
+                        width: 2, // Largura da borda
                       ),
                     ),
-                  ))
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(widget.player.nick),
-                if (!widget.isMyPlayer)
-                  IconButton(
-                      onPressed: () {
-                        _changeOpacity();
-                        setState(() {
-                          _showOverlay = !_showOverlay;
-                        });
-                      },
-                      icon: Icon(_showOverlay
-                          ? Icons.visibility
-                          : Icons.visibility_off))
-              ],
-            ),
-            Stack(
-              children: [
-                AnimatedOpacity(
-                  opacity: 1 - opacityLevel,
-                  duration: const Duration(milliseconds: 500),
-                  child: Center(
-                      child: Text(!widget.isMyPlayer
-                          ? widget.player.getToGuess ?? ""
-                          : "?")),
-                ),
-                /*if (!widget.isMyPlayer /*&& _showOverlay*/)
-                  Positioned.fill(
-                    child: MyOverlay(opacityLevel: opacityLevel),
-                  ),*/
-              ],
-            )
-          ],
-        ),
+                  ),
+                ))
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                widget.player.nick,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium!
+                    .copyWith(color: Theme.of(context).colorScheme.onPrimary),
+              ),
+              if (!widget.isMyPlayer)
+                IconButton(
+                    onPressed: () {
+                      _changeOpacity();
+                      setState(() {
+                        _showOverlay = !_showOverlay;
+                      });
+                    },
+                    icon: Icon(_showOverlay
+                        ? Icons.visibility
+                        : Icons.visibility_off))
+            ],
+          ),
+          Stack(
+            children: [
+              AnimatedOpacity(
+                opacity: 1 - opacityLevel,
+                duration: const Duration(milliseconds: 500),
+                child: Center(
+                    child: Text(!widget.isMyPlayer
+                        ? widget.player.getToGuess ?? ""
+                        : "?")),
+              ),
+              /*if (!widget.isMyPlayer /*&& _showOverlay*/)
+                Positioned.fill(
+                  child: MyOverlay(opacityLevel: opacityLevel),
+                ),*/
+            ],
+          )
+        ],
       ),
     );
   }

@@ -79,4 +79,14 @@ class Player {
     );
   }
 
+  GamePacket createMessagePacket(String message) {
+    return GamePacket(
+      fromHost: isHost,
+      playerNick: nick,
+      playerIP: myIP,
+      type: PacketType.chatMessage,
+      response: message 
+    );
+  }
+
 }
