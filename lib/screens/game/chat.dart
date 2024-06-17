@@ -1,19 +1,20 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:quem_sou_eu/data/game_data/game_data.dart';
 import 'package:quem_sou_eu/data/game_data/game_packet.dart';
 
 class Chat extends StatefulWidget {
-  Chat(
-      {super.key,
-      required this.gameData,
-      required this.toggle,
-      required this.socket});
+  Chat({
+    super.key,
+    required this.gameData,
+    required this.toggle,
+    required this.socket,
+  });
 
   final GameData gameData;
   final bool toggle;
   final dynamic socket;
+
   @override
   State<Chat> createState() => _ChatState();
 }
@@ -24,7 +25,6 @@ class _ChatState extends State<Chat> {
 
   void sendMessage() {
     if (messageController.text.isEmpty) return;
-
     String message =
         "${widget.gameData.myPlayer.nick}: ${messageController.text}";
     widget.gameData.addMessage(message);
@@ -50,8 +50,7 @@ class _ChatState extends State<Chat> {
       decoration: BoxDecoration(
           border: Border.all(),
           color: Theme.of(context).colorScheme.primary.withAlpha(128),
-          borderRadius: BorderRadius.circular(10)
-      ),
+          borderRadius: BorderRadius.circular(10)),
       duration: const Duration(milliseconds: 500),
       curve: Curves.easeInOut,
       height: widget.toggle ? 200 : 0,
@@ -62,16 +61,20 @@ class _ChatState extends State<Chat> {
               padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: List<Widget>.generate(
-                  widget.gameData.messages.length,
-                  (index) => Align(
+                children: List<Widget>.generate(widget.gameData.messages.length,
+                    (index) {
+                  final message = widget.gameData.messages[index].split(":");
+                  return Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       widget.gameData.messages[index],
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                          color: message[0] == widget.gameData.myPlayer.nick
+                              ? Colors.red
+                              : Colors.black),
                     ),
-                  ),
-                ),
+                  );
+                }),
               ),
             ),
           ),

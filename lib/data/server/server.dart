@@ -8,7 +8,7 @@ import 'package:flutter/services.dart';
 class Server {
   static int portServer = 55656;
   static String addressServer =
-      "ec2-18-188-125-150.us-east-2.compute.amazonaws.com";
+      "10.0.0.102";
 
   static void startToListen(RawDatagramSocket socket,
       Function(String, RawDatagramSocket) callback) async {

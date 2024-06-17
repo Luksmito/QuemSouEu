@@ -7,6 +7,7 @@ import 'package:quem_sou_eu/data/player/player.dart';
 import 'package:quem_sou_eu/data/server/server.dart';
 import 'package:quem_sou_eu/screens/find_lobby/lobby_data.dart';
 import 'package:quem_sou_eu/screens/game/game.dart';
+import 'package:quem_sou_eu/theme/backgroud_theme.dart';
 import 'package:quem_sou_eu/theme/container_theme.dart';
 import 'package:quem_sou_eu/theme/input_decoration_theme.dart';
 
@@ -82,86 +83,89 @@ class _ConnectToLobbyState extends State<ConnectToLobby> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(),
-      body: Padding(
-        padding: const EdgeInsets.all(15.0),
-        child: Center(
-          child: Container(
-            decoration: containerTheme(context).copyWith(
-                border: Border.all(),
-                borderRadius: BorderRadius.circular(10),
-                gradient: LinearGradient(colors: [
-                  Theme.of(context).colorScheme.primary.withAlpha(160),
-                  Theme.of(context).colorScheme.secondary.withAlpha(160),
-                  Theme.of(context).colorScheme.tertiary.withAlpha(160),
-                ])),
-            constraints: const BoxConstraints(maxHeight: 300, maxWidth: 400),
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Center(
-                        child: Text(
-                      "Entrar em ${widget.lobbyData.name}",
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    )),
-                    SizedBox(
-                      height: 70,
-                    ),
-                    TextFormField(
-                      decoration: textFieldDecoration(hintText: "Seu nick"),
-                      style: Theme.of(context).textTheme.bodySmall,
-                      controller: nickController,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, insira seu nick';
-                        } else if (value == "Escolha outro nick") {
-                          return 'Nick já em uso';
-                        }
-                        return null;
-                      },
-                    ),
-                    widget.lobbyData.hasPassword
-                        ? TextFormField(
-                            decoration:
-                                textFieldDecoration(hintText: "Password"),
-                            style: Theme.of(context).textTheme.bodySmall,
-                            controller: passwordController,
-                            validator: (value) {
-                              if (value == null ||
-                                  value.isEmpty &&
-                                      widget.lobbyData.hasPassword) {
-                                return 'Por favor, insira o password';
-                              }
-                              return null;
-                            },
-                          )
-                        : const SizedBox(height: 10),
-                    Container(
-                      decoration: buttonContainerTheme(context),
-                      child: ElevatedButton(
-                        onPressed: () => connectToLobby(context),
-                        child: Text(
-                          "Entrar",
-                          style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                              color: Theme.of(context).colorScheme.onPrimary),
+      body: Container(
+        decoration: backgroundTheme(context),
+        child: Padding(
+          padding: const EdgeInsets.all(15.0),
+          child: Center(
+            child: Container(
+              decoration: containerTheme(context).copyWith(
+                  border: Border.all(),
+                  borderRadius: BorderRadius.circular(10),
+                  gradient: LinearGradient(colors: [
+                    Theme.of(context).colorScheme.primary.withAlpha(160),
+                    Theme.of(context).colorScheme.secondary.withAlpha(160),
+                    Theme.of(context).colorScheme.tertiary.withAlpha(160),
+                  ])),
+              constraints: const BoxConstraints(maxHeight: 300, maxWidth: 400),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Center(
+                          child: Text(
+                        "Entrar em ${widget.lobbyData.name}",
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      )),
+                      SizedBox(
+                        height: 70,
+                      ),
+                      TextFormField(
+                        decoration: textFieldDecoration(hintText: "Seu nick"),
+                        style: Theme.of(context).textTheme.bodySmall,
+                        controller: nickController,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Por favor, insira seu nick';
+                          } else if (value == "Escolha outro nick") {
+                            return 'Nick já em uso';
+                          }
+                          return null;
+                        },
+                      ),
+                      widget.lobbyData.hasPassword
+                          ? TextFormField(
+                              decoration:
+                                  textFieldDecoration(hintText: "Password"),
+                              style: Theme.of(context).textTheme.bodySmall,
+                              controller: passwordController,
+                              validator: (value) {
+                                if (value == null ||
+                                    value.isEmpty &&
+                                        widget.lobbyData.hasPassword) {
+                                  return 'Por favor, insira o password';
+                                }
+                                return null;
+                              },
+                            )
+                          : const SizedBox(height: 10),
+                      Container(
+                        decoration: buttonContainerTheme(context),
+                        child: ElevatedButton(
+                          onPressed: () => connectToLobby(context),
+                          child: Text(
+                            "Entrar",
+                            style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                                color: Theme.of(context).colorScheme.onPrimary),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    esperandoResposta
-                        ? const CircularProgressIndicator()
-                        : Text(
-                            mensagemDeErro,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall!
-                                .copyWith(color: Colors.red),
-                          )
-                  ],
+                      const SizedBox(height: 10),
+                      esperandoResposta
+                          ? const CircularProgressIndicator()
+                          : Text(
+                              mensagemDeErro,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall!
+                                  .copyWith(color: Colors.red),
+                            )
+                    ],
+                  ),
                 ),
               ),
             ),

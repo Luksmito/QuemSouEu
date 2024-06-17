@@ -10,6 +10,7 @@ import 'package:quem_sou_eu/screens/game/actions_bar.dart';
 import 'package:quem_sou_eu/screens/game/player_list.dart';
 import 'package:quem_sou_eu/screens/game/select_order.dart';
 import 'package:quem_sou_eu/screens/game/select_to_guess.dart';
+import 'package:quem_sou_eu/theme/backgroud_theme.dart';
 
 class Game extends StatefulWidget {
   const Game({
@@ -71,7 +72,6 @@ class _GameState extends State<Game> {
       },
     );
   }
-
 
   void showSelectToGuess() async {
     final toGuess = await showDialog<Map<String, String>>(
@@ -147,7 +147,10 @@ class _GameState extends State<Game> {
         builder: (BuildContext context, Widget? child) {
           handleGameState();
           return Scaffold(
+            extendBody: true,
+            extendBodyBehindAppBar: true,
             appBar: AppBar(
+              backgroundColor: Colors.transparent,
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -163,14 +166,21 @@ class _GameState extends State<Game> {
               ),
             ),
             persistentFooterButtons: [
-              ActionsBar(
-                gameData: gameData,
-                socket: socket,
+              Padding(
+                padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom),
+                child: ActionsBar(
+                  gameData: gameData,
+                  socket: socket,
+                ),
               )
             ],
-            body: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: PlayerList(gameData: gameData)),
+            body: Container(
+              decoration: backgroundTheme(context),
+              child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: PlayerList(gameData: gameData)),
+            ),
           );
         });
   }

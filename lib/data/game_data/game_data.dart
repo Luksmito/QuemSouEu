@@ -21,7 +21,12 @@ class GameData with ChangeNotifier {
   String whosTurn = "";
   bool quitGame = false;
   List<String> messages = [];
+  int notReadMessages = 0;
 
+  void resetReadMessages() {
+    notReadMessages = 0;
+    notifyListeners();
+  }
 
   Map<String, dynamic> canConnect = {
     "canConnect": false,
@@ -254,6 +259,10 @@ class GameData with ChangeNotifier {
         break;
       case PacketType.chatMessage:
         messages.add(newPacket.response!);
+        notReadMessages += 1;
+        if (myPlayer.isHost && !isServer) {
+          sendPacketToAllPlayers(socket, newPacket);
+        }
         break;
       default:
         break;

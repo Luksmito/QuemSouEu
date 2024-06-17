@@ -21,6 +21,7 @@ class ActionsBar extends StatefulWidget {
 
 class _ActionsBarState extends State<ActionsBar> {
   final List<Widget> linhaDeBaixo = [];
+
   bool chatToggle = false;
 
   @override
@@ -119,7 +120,7 @@ class _ActionsBarState extends State<ActionsBar> {
               style: squareButtonTheme(),
               onPressed: sendPacketPassTurn,
               child: Text("Passar vez",
-                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
                       color: Theme.of(context).colorScheme.onPrimary))),
         )));
       } else {
@@ -132,9 +133,11 @@ class _ActionsBarState extends State<ActionsBar> {
           child: ElevatedButton(
               style: squareButtonTheme(),
               onPressed: () => restartGame(context),
-              child: Text("Reiniciar jogo",
-                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                      color: Theme.of(context).colorScheme.onPrimary))),
+              child: Expanded(
+                child: Text("Reiniciar jogo",
+                    style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                        color: Theme.of(context).colorScheme.onPrimary)),
+              )),
         )));
       }
     }
@@ -142,17 +145,31 @@ class _ActionsBarState extends State<ActionsBar> {
       Flexible(
           child: Container(
         decoration: buttonContainerTheme(context),
-        child: IconButton(
-          color: Theme.of(context).colorScheme.onPrimary,
-          icon: const Icon(Icons.chat),
+        child: ElevatedButton(
           style: ButtonStyle(
-              backgroundColor: MaterialStateProperty.all(
-                  Colors.transparent),),
+            backgroundColor: MaterialStateProperty.all(Colors.transparent),
+          ),
           onPressed: () {
+            widget.gameData.resetReadMessages();
             setState(() {
               chatToggle = !chatToggle;
             });
           },
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Icon(Icons.chat),
+              Text(
+                  widget.gameData.notReadMessages != 0 && !chatToggle
+                      ? "${widget.gameData.notReadMessages}"
+                      : "",
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium!
+                      .copyWith(color: Colors.red)),
+            ],
+          ),
         ),
       )),
     );
@@ -168,6 +185,7 @@ class _ActionsBarState extends State<ActionsBar> {
           gameData: widget.gameData,
           toggle: chatToggle,
           socket: widget.socket,
+
         ),
         const SizedBox(
           height: 5,
