@@ -21,6 +21,8 @@ class SelectToGuess extends StatefulWidget {
 class _SelectToGuessState extends State<SelectToGuess> {
   int nextPlayerIndex = 0;
   final TextEditingController nomeController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
   List<Widget> widgetList = [];
   List<String> images = [];
   String hostImages = 'https://serpapi.com/search.json';
@@ -28,6 +30,7 @@ class _SelectToGuessState extends State<SelectToGuess> {
       "a0abc8c70cff4943c6998d8becfc561aabf6ce028af85253c8e1c7b4d62dd9c6";
   bool _isLoading = false;
   int indexImageSelected = -1;
+
 
   @override
   void initState() {
@@ -58,8 +61,6 @@ class _SelectToGuessState extends State<SelectToGuess> {
       _isLoading = false;
     });
   }
-
-  
 
   void choosed() async {
     if (nomeController.text.isNotEmpty) {
@@ -109,9 +110,9 @@ class _SelectToGuessState extends State<SelectToGuess> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      child: Dialog.fullscreen(
-        child: Scaffold(
-            bottomNavigationBar: Container(
+      child: Scaffold(
+            bottomNavigationBar:
+             Container(
                 decoration: buttonContainerTheme(context),
               child: ElevatedButton(
                 onPressed: choosed,
@@ -129,53 +130,57 @@ class _SelectToGuessState extends State<SelectToGuess> {
             ),
             body: Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Column(
-                children: [
-                  TextField(
-                    style: Theme.of(context).textTheme.bodySmall,
-                    decoration: InputDecoration(
-                        labelText:
-                            "O que ${widget.gameData.players[nextPlayerIndex].nick} deve adivinhar?",
-                        labelStyle: Theme.of(context).textTheme.bodyMedium),
-                    controller: nomeController,
-                  ),
-                  const SizedBox(
-                    height: 30,
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+              child: FocusScope(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
                     children: [
-                      Container(
-                decoration: buttonContainerTheme(context),
-              child: ElevatedButton(
-                          onPressed: searchImages,
-                          child: Text(
-                            "Buscar imagem",
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ))),
+                      TextField(
+                        style: Theme.of(context).textTheme.bodySmall,
+                        decoration: InputDecoration(
+                            labelText:
+                                "O que ${widget.gameData.players[nextPlayerIndex].nick} deve adivinhar?",
+                            labelStyle: Theme.of(context).textTheme.bodyMedium),
+                        controller: nomeController,
+                      ),
+                      const SizedBox(
+                        height: 30,
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Container(
+                    decoration: buttonContainerTheme(context),
+                  child: ElevatedButton(
+                              onPressed: searchImages,
+                              child: Text(
+                                "Buscar imagem",
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ))),
+                        ],
+                      ),
+                      const SizedBox(
+                        height: 30,
+                      ),
+                      Flexible(
+                        child: _isLoading
+                            ? const CircularProgressIndicator()
+                            : images.isEmpty
+                                ? Expanded(
+                                    child: Text('Busque uma imagem!', style: Theme.of(context).textTheme.bodyMedium,))
+                                : Padding(
+                                    padding: const EdgeInsets.all(12.0),
+                                    child: ImagesToGuess(
+                                        images: images,
+                                        callBackFunction: setImageSelectedIndex,
+                                        indexImageSelected: indexImageSelected),
+                                  ),
+                      ),
                     ],
                   ),
-                  const SizedBox(
-                    height: 30,
-                  ),
-                  Flexible(
-                    child: _isLoading
-                        ? const CircularProgressIndicator()
-                        : images.isEmpty
-                            ? Expanded(
-                                child: Text('Busque uma imagem!', style: Theme.of(context).textTheme.bodyMedium,))
-                            : Padding(
-                                padding: const EdgeInsets.all(12.0),
-                                child: ImagesToGuess(
-                                    images: images,
-                                    callBackFunction: setImageSelectedIndex,
-                                    indexImageSelected: indexImageSelected),
-                              ),
-                  ),
-                ],
+                ),
               ),
             )),
-      ),
-    );
+      );
   }
 }

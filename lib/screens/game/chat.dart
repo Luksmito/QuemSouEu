@@ -9,11 +9,13 @@ class Chat extends StatefulWidget {
     required this.gameData,
     required this.toggle,
     required this.socket,
+    required this.callbackPaddingKeyboard
   });
 
   final GameData gameData;
   final bool toggle;
   final dynamic socket;
+  final VoidCallback callbackPaddingKeyboard;
 
   @override
   State<Chat> createState() => _ChatState();
@@ -22,6 +24,25 @@ class Chat extends StatefulWidget {
 class _ChatState extends State<Chat> {
   String chatMessages = "";
   final messageController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    widget.callbackPaddingKeyboard();
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
+    messageController.dispose();
+    super.dispose();
+  }
 
   void sendMessage() {
     if (messageController.text.isEmpty) return;
@@ -84,6 +105,7 @@ class _ChatState extends State<Chat> {
               children: [
                 Expanded(
                   child: TextField(
+                    focusNode: _focusNode,
                     controller: messageController,
                     style: Theme.of(context).textTheme.bodySmall,
                     decoration: InputDecoration(

@@ -22,6 +22,7 @@ class GameData with ChangeNotifier {
   bool quitGame = false;
   List<String> messages = [];
   int notReadMessages = 0;
+  bool disconnected = false;
 
   void resetReadMessages() {
     notReadMessages = 0;
@@ -255,6 +256,11 @@ class GameData with ChangeNotifier {
         restartGame();
         break;
       case PacketType.playerDisconnect:
+        if (gameState == GameState.gameStarting) {
+          if (newPacket.playerNick == whosTurn) {
+            passTurn();
+          }
+        }
         players.removeWhere((player) => player.nick == newPacket.playerNick);
         break;
       case PacketType.chatMessage:
@@ -263,6 +269,12 @@ class GameData with ChangeNotifier {
         if (myPlayer.isHost && !isServer) {
           sendPacketToAllPlayers(socket, newPacket);
         }
+        break;
+      case PacketType.tryingToReconnect:
+        disconnected = true;
+        break;
+      case PacketType.reconnected:
+        disconnected = false;
         break;
       default:
         break;

@@ -8,7 +8,8 @@ import 'package:flutter/services.dart';
 class Server {
   static int portServer = 55656;
   static String addressServer =
-      "10.0.0.102";
+      "ec2-18-188-125-150.us-east-2.compute.amazonaws.com";
+  static Duration heartbeatInterval = const Duration(seconds: 5);
 
   static void startToListen(RawDatagramSocket socket,
       Function(String, RawDatagramSocket) callback) async {
@@ -72,26 +73,33 @@ class Server {
     SecureSocket socket = await SecureSocket.connect(addressServer, portServer,
         context: context,
         onBadCertificate: (X509Certificate certificate) => true);
+    final timer =
+        Timer.periodic(heartbeatInterval, (timer) => _sendHeartbeat(socket));
     socket.listen(
       (data) {
         callback(utf8.decode(data), socket);
       },
       onDone: () {
         print('Server disconnected.');
+        timer.cancel();
         socket.destroy();
       },
       onError: (error) {
         print('Error: $error');
+        timer.cancel();
         socket.destroy();
       },
     );
     return socket;
   }
 
+  static void _sendHeartbeat(socket) {
+    socket.write('heartbeat\n');
+  }
+
   static Future<RawDatagramSocket?> start(int port, InternetAddress ip) async {
     try {
       RawDatagramSocket socket = await RawDatagramSocket.bind(ip, port);
-
       return socket;
     } catch (e) {
       print("Erro $e");
@@ -99,51 +107,3 @@ class Server {
     }
   }
 }
-
-/*import 'dart:async';
-import 'dart:io';
-
-class Server {
-  static const String multicastAddress= '255.255.255.255';
-  
-  static void startToListen(RawDatagramSocket socket, Function(String, RawDatagramSocket) callback) async {
-    try {
-      // Configure o socket para permitir o envio de pacotes para o endereço de broadcast
-      socket.broadcastEnabled = true;
-    } catch (e) {
-      print('Erro ao habilitar o broadcast: $e');
-      return;
-    }
-
-    print("ESCUTANDO");
-
-    socket.listen((RawSocketEvent event) {     
-      if (event == RawSocketEvent.read) {
-        Datagram? datagram = socket.receive();
-        if (datagram != null) {
-          String message = String.fromCharCodes(datagram.data);
-          callback(message, socket);
-        } 
-        socket.readEventsEnabled = true;
-      }
-    }, onError: (e) => print("onError"),
-    onDone: () {
-      print("socket Fechado");
-      socket.close();
-    });
-  }
-
-  static Future<RawDatagramSocket?> start(int port) async {
-    try {
-      // Crie o socket UDP
-      var socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, port);
-      // Permita que o socket envie pacotes de broadcast
-      socket.broadcastEnabled = true;
-      return socket;
-    } catch (e) {
-      print("Erro $e");
-      return null;
-    } 
-  }
-}
-*/

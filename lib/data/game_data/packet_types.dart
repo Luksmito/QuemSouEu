@@ -13,7 +13,9 @@ enum PacketType {
   playerDisconnect,
   packetResponse,
   chatMessage,
-  question
+  question,
+  tryingToReconnect,
+  reconnected
 }
 
 PacketType? packetTypeFromString(String value) {
@@ -48,6 +50,10 @@ PacketType? packetTypeFromString(String value) {
       return PacketType.chatMessage;
     case 'PacketType.question':
       return PacketType.question;
+    case 'PacketType.tryingToReconnect':
+      return PacketType.tryingToReconnect;
+    case 'PacketType.reconnected':
+      return PacketType.reconnected;
     default:
       return null;
   }

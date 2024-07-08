@@ -61,7 +61,7 @@ class _SelectOrderState extends State<SelectOrder> {
               widget.gameData.setGameState = GameState.waitingPlayerChooseToGuess;
               if (widget.gameData.isServer) {
                 packet.lobbyName = widget.gameData.lobbyName;
-                widget.socket.write(packet);
+                widget.socket.write(packet.toString());
               } else {
                 widget.gameData.sendPacketToAllPlayers(widget.socket!, packet);
               }

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Terminal=false
+Name=quem_sou_eu
+Exec=quem_sou_eu %u
+Icon=logo2
+Categories=Utility;

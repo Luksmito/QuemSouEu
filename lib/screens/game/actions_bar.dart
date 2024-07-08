@@ -23,10 +23,17 @@ class _ActionsBarState extends State<ActionsBar> {
   final List<Widget> linhaDeBaixo = [];
 
   bool chatToggle = false;
+  double bottomPadding = 0;
 
   @override
   void initState() {
     super.initState();
+  }
+
+  void setPadding() {
+    setState(() {
+      bottomPadding = bottomPadding == 0 ? 230 : 0;
+    });
   }
 
   void restartGame(context) async {
@@ -46,9 +53,9 @@ class _ActionsBarState extends State<ActionsBar> {
   }
 
   void changeToSelectOrderState() {
-    if (widget.gameData.players.length == 1) {
+    /*if (widget.gameData.players.length == 1) {
       return;
-    }
+    }*/
     GamePacket packet = widget.gameData.myPlayer
         .createChangeStatePacket(GameState.waitingHostSelectOrder);
     if (widget.gameData.myPlayer.isHost) {
@@ -175,26 +182,31 @@ class _ActionsBarState extends State<ActionsBar> {
     );
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     buildBar(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Chat(
-          gameData: widget.gameData,
-          toggle: chatToggle,
-          socket: widget.socket,
-
-        ),
-        const SizedBox(
-          height: 5,
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: linhaDeBaixo,
-        )
-      ],
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomPadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Chat(
+            gameData: widget.gameData,
+            toggle: chatToggle,
+            socket: widget.socket,
+            callbackPaddingKeyboard: setPadding
+          ),
+          const SizedBox(
+            height: 5,
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: linhaDeBaixo,
+          )
+        ],
+      ),
     );
   }
 }
