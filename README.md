@@ -1,16 +1,4 @@
-# quem_sou_eu
+# Quem sou eu
 
-A new Flutter project.
-
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Jogo onde cada player tem um objeto de um determinado tema para descobrir qual é fazendo perguntas de sim ou não.
+Nesse caso o jogo é online de forma local ou em um servidor desenvolvido também por mim nesse link: https://github.com/Luksmito/ServidorQuemSouEu
